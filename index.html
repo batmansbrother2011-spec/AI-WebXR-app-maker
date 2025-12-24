@@ -4,29 +4,419 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI WebXR App Creator</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Improved UI styling */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2rem 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+        }
+        #input-container {
+            display: flex;
+            margin-bottom: 1.5rem;
+        }
+        #user-prompt {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #d0d0d0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        #user-prompt:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+        }
+        #generate-button {
+            padding: 0.75rem 1.25rem;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin-left: 10px;
+        }
+        #generate-button:hover:not(.loading) {
+            background-color: #3672b0;
+        }
+        #generate-button.loading {
+            background-color: #a5a5a5;
+        }
+        #vr-device-detector {
+            padding-bottom: 1rem;
+        }
+        .vr-device-info {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        #result-container {
+            min-height: 300px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: none;
+        }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        #save-and-run-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #save-and-run-button:hover {
+            background-color: #218838;
+        }
+        .instructions {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+            list-style: disc outside;
+        }
+        .error-message {
+            background-color: #ffe5e5;
+            color: #d95353;
+            padding: 1.25rem;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>✨ AI WebXR App Creator</h1>
-        <p>Type a prompt for your virtual reality or augmented reality scene, e.g., "A futuristic city at night" or "A forest with magical creatures."</p>
 
-        <div class="input-container">
+    <div class="container">
+        <h1>AI WebXR App Creator</h1>
+        <p>Create a virtual reality environment with natural language instructions.</p>
+
+        <div id="input-container">
             <textarea 
                 id="user-prompt" 
-                placeholder="Your idea here..."></textarea>
+                placeholder="e.g., 'A ancient forest with a stone path leading to a mysterious cave.'" 
+                rows="3"></textarea>
             <button id="generate-button">Generate WebXR App</button>
         </div>
 
+        <div id="vr-device-detector">
+            <h2>VR Headset Detection</h2>
+            <p>Your browser may not detect a VR device yet. Please put on your headset and refresh.</p>
+            <div class="vr-device-info" id="vr-device-status"></div>
+            <button id="detect-vr-button" class="detect-vr-button">Detect VR Devices</button>
+        </div>
+
         <div id="result-container">
-            <h2>Your Virtual Environment Will Be Ready!</h2>
-            <p>1. Save the generated HTML file.</p>
-            <p>2. Open it in a modern browser (Chrome, Firefox).</p>
-            <p>3. Enable WebXR with your VR/AR headset.</p>
-            <p><strong>Note:</strong> Your AI's response may take 2-5 seconds to generate.</p>
+            <div class="result-header">
+                <h2>Your WebXR App Code</h2>
+                <img id="info-icon" src="data:image/png;base64,iVBORw0KGgooooAAAANSUhEUgAAAGQAAAABAQMAAP***
+
+            </div>
+            <pre id="generated-code"></pre>
+            <button id="save-and-run-button">Save & Run Locally</button>
+            <ul class="instructions">
+                <li>Copy the entire HTML code below.</li>
+                <li>Create a new file with an `.html` extension.</li>
+                <li>Paste the code into the file and open it in your browser.</li>
+                <li>To use VR, you must have a compatible headset connected and enabled in your browser.</li>
+            </ul>
+        </div>
+
+        <div class="error-message" id="error-message">
+            <p>An error occurred while creating your app. Please try again.
         </div>
     </div>
 
-    <script src="ai-engine.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@aws-sdk/util-hex-encoding/dist/util-hex-encoding.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // --- Safety Warning ---
+        // By using this tool, you agree to review and understand the content generated by AI.
+        // AI-generated code can contain security vulnerabilities, privacy risks, or unintended behavior.
+        // Always test AI-generated code in a safe environment before deploying it in the real world.
+        // For more information, see the OpenAI Safety Guidelines: 
+        // https://openai.com/safety/
+
+        const API_KEY = "YOUR_OPENAPI_KEY"; // --- REPLACE THIS WITH YOUR ACTUAL KEY ---
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- State Variables ---
+            let vrDevice = null;
+            let generatedCode = "";
+            const MAX_RETRIES = 3;
+
+            // --- API Call Function ---
+            async function callOpenAI_API(prompt) {
+                try {
+                    const response = await fetch('https://api.openai.com/v1/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            model: "completions",
+                            prompt: `Create a functional WebXR HTML app for an environment described in the user's prompt. The prompt is: '${prompt}'. Return ONLY the complete, ready-to-run HTML code. Do not include any other text, explanations, or formatting. Start with <!DOCTYPE html> and ensure all JS and CSS is included. Be sure to include VR session handling, frame rendering, and event listeners for user interaction. Use standard HTML tags for simplicity. \n\n User Prompt: '${prompt}'`,
+                            max_tokens: 2000,
+                            temperature: 0.7,
+                            top_p: 1.0,
+                            frequency_penalty: 0.0,
+                            presence_penalty: 0.0
+                        })
+                    );
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`OpenAI API error: ${errorData.error.code}: ${errorData.error.message}`);
+                    }
+
+                    const data = await response.json();
+                    return data.choices[0].text.content;
+
+                } catch (error) {
+                    console.error("Error calling OpenAI API:", error);
+                    return null;
+                }
+            }
+
+            // --- VR Device Detection ---
+            async function detectVRDevices() {
+                try {
+                    const vrDevices = navigator.getVRDevices();
+                    if (vrDevices && vrDevices.length > 0) {
+                        const device = vrDevices[0];
+                        vrDevice = device;
+                        document.getElementById('vr-device-status').innerHTML = `
+                            ✅ VR Device Found: ${device.label}
+                        `;
+                        return true;
+                    } else {
+                        document.getElementById('vr-device-status').innerHTML = `
+                            ❓ No VR devices detected. Please put on a headset.
+                        `;
+                        return false;
+                    }
+                } catch (error) {
+                    console.error("Error detecting VR devices:", error);
+                    document.getElementById('vr-device-status').innerHTML = `
+                        🚨 Error detecting VR devices: ${error.message}
+                    `;
+                    return false;
+                }
+            }
+
+            // --- Generate WebXR App Code ---
+            async function generateWebXRApp(prompt) {
+                const maxRetries = MAX_RETRIES;
+                let generatedHTML = "";
+                
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        // Add a small delay between retries
+                        await new Promise(r => setTimeout(r, 1000));
+                        
+                        // Make the API call
+                        generatedHTML = await callOpenAI_API(prompt);
+                        
+                        if (generatedHTML && generatedHTML.trim() !== "") {
+                            break; // Success, no need to retry
+                        }
+                    } catch (error) {
+                        console.log(`Retries remaining: ${maxRetries - i - 1}. Reason:`, error.message);
+                    }
+                }
+
+                if (!generatedHTML || generatedHTML.trim() === "") {
+                    document.getElementById('error-message').innerHTML = `
+                        ❌ Failed to generate code after several attempts. Please check the console for details.
+                    `;
+                    return;
+                }
+
+                // Sanitize the output to ensure it's a valid HTML snippet
+                // This is a critical safety measure to prevent XSS attacks.
+                generatedHTML = generatedHTML
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, '&quot;');
+
+                document.getElementById('generated-code').innerHTML = generatedHTML;
+                document.getElementById('result-container').style.display = "block";
+                
+                // Show a success message
+                document.getElementById('success-message').innerHTML = `
+                    ✓ Your WebXR app code has been generated! Now you can save and run it.
+                `;
+            }
+
+            // --- Save & Run the App ---
+            async function saveAndRun() {
+                const promptValue = document.getElementById('user-prompt').value;
+                if (!promptValue) {
+                    alert("Please enter a description for your environment.");
+                    return;
+                }
+
+                if (confirm("This will create a new app. Are you sure?")) {
+                    // Show loading state
+                    document.getElementById('save-and-run-button').disabled = true;
+                    document.getElementById('save-and-run-button').innerHTML = "Saving...";
+
+                    try {
+                        // 1. First, ensure we have a VR device if the user has one
+                        await detectVRDevices();
+
+                        // 2. Generate the code using the AI
+                        generateWebXRApp(promptValue);
+
+                    } catch (error) {
+                        console.error("Error in saveAndRun:", error);
+                        alert(`An error occurred: ${error.message}`);
+                    } finally {
+                        // 3. Reset button
+                        document.getElementById('save-and-run-button').disabled = false;
+                        document.getElementById('save-and-run-button').innerHTML = "Save & Run";
+                    }
+                }
+            }
+
+            // --- Event Listeners ---
+            document.getElementById('generate-button').addEventListener('click', () => {
+                const promptValue = document.getElementById('user-prompt').value;
+                if (promptValue) {
+                    document.getElementById('generate-button').disabled = true;
+                    document.getElementById('generate-button').innerHTML = "Generating...";
+
+                    // Call your generate function here
+                    generateWebXRApp(promptValue)
+                        .finally(() => {
+                            document.getElementById('generate-button').disabled = false;
+                            document.getElementById('generate-button').innerHTML = "Generate WebXR App";
+                        });
+                } else {
+                    alert("Please enter a description for your environment.");
+                }
+            });
+
+            document.getElementById('detect-vr-button').addEventListener('click', () => {
+                detectVRDevices();
+            });
+
+            document.getElementById('save-and-run-button').addEventListener('click', saveAndRun);
+
+            // Initial VR detection
+            detectVRDevices();
+        });
+
+        /* --- Basic Frame Rendering for Demo --- */
+        // This simple loop runs continuously in the browser when a VR display is connected.
+        // It creates a basic parallax effect to demonstrate frame rendering without JavaScript logic.
+        function renderFrame(time) {
+            // Get the canvas element (adjust the ID if needed)
+            const canvas = document.getElementById('vr-canvas');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            // Clear the canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Define parallax layers
+            const layer1Speed = 0.5;
+            const layer2Speed = 1.5;
+
+            // Simulate movement with time
+            let x1 = Math.sin(time * 0.001) * layer1Speed;
+    let x2 = Math.sin(time * 0.0005) * layer2Speed;
+
+    // Draw a background
+    ctx.fillStyle = `rgba(90, 150, 255, 0.2`;
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw dynamic shapes to create depth
+    ctx.strokeStyle = `rgba(255, 255, 255, 0.3`;
+    ctx.lineWidth = 1;
+    
+    // Layer 1
+    for (let i = 0; i < width; i++) {
+        const y1 = Math.sin(time * 0.001 + i * 0.005) * 2;
+        ctx.strokeRect(i - x1, y1, 1, 1);
+    }
+
+    // Layer 2
+    for (let j = 0; j < height; j++) {
+        const x3 = Math.sin(time * 0.0005 + j * 0.002) * 2;
+        ctx.strokeRect(x3, j - x2, 1, 1);
+    }
+
+    // Request the next frame
+    requestAnimationFrame(renderFrame);
+}
+
+// Function to set up the VR display
+function setupVRDisplay() {
+    if (!navigator.getUserMedia) {
+        alert("Your browser does not support VR. Please enable VR in your browser settings.");
+        return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'vr-canvas';
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+
+    // Make sure the canvas is drawn on top of other content
+    canvas.style.zIndex = '999';
+
+    document.body.appendChild(canvas);
+
+    // Start rendering frames
+    renderFrame(performance.now());
+
+    // Simulate a VR trigger event
+    const handleVRTrigger = () => {
+        alert("VR Trigger Detected! This is a demonstration.");
+    };
+
+    // Remove the event listener when the app unloads
+    window.addEventListener('unload', () => {
+        document.body.removeChild(canvas);
+    });
+}
+
+// Initialize the demo
+document.readyState === 'loading' ? 
+    document.addEventListener('DOMContentLoaded', setupVRDisplay) :
+    setupVRDisplay();
+    </script>
 </body>
 </html>
